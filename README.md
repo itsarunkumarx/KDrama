@@ -91,13 +91,6 @@ npx expo start
 
 ---
 
-## 🔑 Default Admin Credentials
-
-> [!WARNING]
-> Please change these credentials immediately after your first login.
-
-- **Email**: `arunkumarpalani428@gmail.com`
-- **Password**: `Arunkumar@2006`
 
 ---
 
@@ -115,8 +108,5 @@ TRAKT_CLIENT_SECRET=your_trakt_secret
 
 ---
 
-## 📞 Support & Feedback
-
-For any issues or feature requests, please reach out to the project administrator.
 
 **Enjoy your K-Drama journey! 🍿🎥**
