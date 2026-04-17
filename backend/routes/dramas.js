@@ -46,6 +46,17 @@ const parsePage = (value) => {
   return Number.isNaN(page) || page < 1 ? 1 : page;
 };
 
+const returnListFallback = (res, message, err, page = 1) => {
+  console.error(`❌ ${message}:`, err.response?.data || err.message);
+  return res.json({
+    results: [],
+    page,
+    total_results: 0,
+    source: "tmdb_error_fallback",
+    message,
+  });
+};
+
 router.get("/trending", async (req, res) => {
   try {
     const { data } = await tmdb.get("/trending/tv/week", {
@@ -53,10 +64,7 @@ router.get("/trending", async (req, res) => {
     });
     return returnList(res, data);
   } catch (err) {
-    return res.status(500).json({
-      message: "Failed to fetch trending dramas",
-      detail: err.response?.data || err.message,
-    });
+    return returnListFallback(res, "Failed to fetch trending dramas", err);
   }
 });
 
@@ -75,10 +83,7 @@ router.get("/new-releases", async (req, res) => {
     });
     return returnList(res, data, page);
   } catch (err) {
-    return res.status(500).json({
-      message: "Failed to fetch new releases",
-      detail: err.response?.data || err.message,
-    });
+    return returnListFallback(res, "Failed to fetch new releases", err, page);
   }
 });
 
@@ -90,10 +95,7 @@ router.get("/popular", async (req, res) => {
     });
     return returnList(res, data, page);
   } catch (err) {
-    return res.status(500).json({
-      message: "Failed to fetch popular dramas",
-      detail: err.response?.data || err.message,
-    });
+    return returnListFallback(res, "Failed to fetch popular dramas", err, page);
   }
 });
 
@@ -109,10 +111,7 @@ router.get("/romance", async (req, res) => {
     });
     return returnList(res, data);
   } catch (err) {
-    return res.status(500).json({
-      message: "Failed to fetch romance dramas",
-      detail: err.response?.data || err.message,
-    });
+    return returnListFallback(res, "Failed to fetch romance dramas", err);
   }
 });
 
@@ -128,10 +127,7 @@ router.get("/action", async (req, res) => {
     });
     return returnList(res, data);
   } catch (err) {
-    return res.status(500).json({
-      message: "Failed to fetch action dramas",
-      detail: err.response?.data || err.message,
-    });
+    return returnListFallback(res, "Failed to fetch action dramas", err);
   }
 });
 
@@ -148,16 +144,14 @@ router.get("/search", async (req, res) => {
     });
     return returnList(res, data, page);
   } catch (err) {
-    return res.status(500).json({
-      message: "Failed to search dramas",
-      detail: err.response?.data || err.message,
-    });
+    return returnListFallback(res, "Failed to search dramas", err, page);
   }
 });
 
 router.get("/:id", async (req, res) => {
+  const id = req.params.id;
   try {
-    const { data } = await tmdb.get(`/tv/${req.params.id}`, {
+    const { data } = await tmdb.get(`/tv/${id}`, {
       params: {
         language: "en-US",
         append_to_response: "similar,videos",
@@ -170,17 +164,41 @@ router.get("/:id", async (req, res) => {
       source: "tmdb_live_api",
     });
   } catch (err) {
-    const status = err.response?.status || 500;
-    return res.status(status).json({
-      message: "Drama not found",
+    if (err.response?.status === 404) {
+      try {
+        const { data } = await tmdb.get(`/movie/${id}`, {
+          params: {
+            language: "en-US",
+            append_to_response: "similar,videos",
+          },
+        });
+        return res.json({
+          ...data,
+          name: data.title || data.name,
+          title: data.title || data.name,
+          first_air_date: data.release_date,
+          number_of_seasons: 0,
+          number_of_episodes: 0,
+          source: "tmdb_movie_fallback",
+        });
+      } catch (movieErr) {
+        return res.status(404).json({
+          message: "Drama not found",
+          detail: movieErr.response?.data || movieErr.message,
+        });
+      }
+    }
+    return res.status(500).json({
+      message: "Failed to fetch drama details",
       detail: err.response?.data || err.message,
     });
   }
 });
 
 router.get("/:id/videos", async (req, res) => {
+  const id = req.params.id;
   try {
-    const { data } = await tmdb.get(`/tv/${req.params.id}/videos`, {
+    const { data } = await tmdb.get(`/tv/${id}/videos`, {
       params: {
         language: "en-US",
         include_video_language: "en,null",
@@ -188,6 +206,22 @@ router.get("/:id/videos", async (req, res) => {
     });
     return res.json({ results: data.results || [], source: "tmdb_live_api" });
   } catch (err) {
+    if (err.response?.status === 404) {
+      try {
+        const { data } = await tmdb.get(`/movie/${id}/videos`, {
+          params: {
+            language: "en-US",
+            include_video_language: "en,null",
+          },
+        });
+        return res.json({
+          results: data.results || [],
+          source: "tmdb_movie_fallback",
+        });
+      } catch (movieErr) {
+        return res.json({ results: [], source: "tmdb_error_fallback" });
+      }
+    }
     return res.json({ results: [], source: "tmdb_error_fallback" });
   }
 });
@@ -199,7 +233,7 @@ router.get("/:id/seasons", async (req, res) => {
     });
     return res.json({ seasons: data.seasons || [] });
   } catch (err) {
-    return res.status(500).json({ message: "TMDB Error: " + err.message });
+    return res.json({ seasons: [] });
   }
 });
 
@@ -211,7 +245,7 @@ router.get("/:id/season/:s", async (req, res) => {
     });
     return res.json({ episodes: data.episodes || [] });
   } catch (err) {
-    return res.status(500).json({ message: "TMDB Error: " + err.message });
+    return res.json({ episodes: [] });
   }
 });
 
