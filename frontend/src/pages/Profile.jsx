@@ -3,12 +3,7 @@ import { useAuth } from '../context/AuthContext';
 
 export default function Profile() {
   const { user, logout } = useAuth();
-  const roleColors = {
-    admin: { bg: 'bg-yellow-600/20', text: 'text-yellow-400', label: '👑 Admin', icon: '⚡' },
-    favorite: { bg: 'bg-purple-600/20', text: 'text-purple-400', label: '💎 Friend', icon: '✨' },
-    user: { bg: 'bg-pink-600/20', text: 'text-pink-300', label: '👤 User', icon: '💕' },
-  };
-  const rc = roleColors[user?.role] || roleColors.user;
+  const rc = { bg: 'bg-pink-600/20', text: 'text-pink-300', label: '👤 User', icon: '💕' };
 
   return (
     <div className="pt-20 min-h-screen px-4 pb-20 bg-gradient-to-b from-slate-950 via-black to-slate-950">

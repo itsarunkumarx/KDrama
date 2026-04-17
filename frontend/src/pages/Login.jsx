@@ -185,15 +185,6 @@ export default function Login() {
               Login with Trakt
             </button>
 
-            {/* Favorite Access Link */}
-            <Link 
-              to="/favorite-login"
-              className="mt-6 w-full py-4 text-sm font-bold rounded-2xl flex items-center justify-center gap-2 border-2 border-yellow-500/50 bg-yellow-500/10 text-yellow-300 hover:bg-yellow-500/20 hover:border-yellow-500/80 transition-all duration-300 hover:scale-105 uppercase tracking-wide group/fav"
-            >
-              <span className="text-2xl group-hover/fav:animate-spin transition-transform">💎</span>
-              Exclusive VIP Access
-            </Link>
-
             {/* Register Link */}
             <p className="text-center text-gray-400 text-sm mt-8">
               New to KDramaX?{' '}
