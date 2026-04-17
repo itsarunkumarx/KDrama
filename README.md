@@ -26,15 +26,9 @@ Our custom **SuperPlayer** provides a cinema-grade viewing experience:
 - **Room Sharing**: Instant room IDs for quick joining.
 
 ### 🔐 Multi-Tier Authentication
-A beautiful **3-Card Entry System** with distinct themes:
+
 1. **👤 Normal Login (Red)**: Standard access for registered users.
 2. **✨ Fresh Start (Emerald)**: Modern 2-step registration for new members.
-3. **⭐ Exclusive Access (Purple)**: Premium entry for VIP guests using admin-generated codes.
-
-### 👨‍💼 Power Admin Dashboard
-- **User Management**: Activate/deactivate accounts.
-- **Invite Engine**: Generate unique VIP access codes for friends.
-- **Engagement Stats**: Monitor app usage and trending dramas.
 
 ---
 
