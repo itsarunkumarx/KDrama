@@ -69,9 +69,25 @@ export default function Watch() {
         setLoadingEpisodes(true);
         try {
           const res = await api.get(`/dramas/${id}/season/${selectedSeason}`);
-          setEpisodes(res.data.episodes);
+          const nextEpisodes = Array.isArray(res.data?.episodes)
+            ? res.data.episodes
+            : [];
+          setEpisodes(nextEpisodes);
+
+          if (nextEpisodes.length > 0) {
+            const hasCurrent = nextEpisodes.some(
+              (ep) => ep.episode_number === selectedEpisode,
+            );
+            if (!hasCurrent) {
+              setSelectedEpisode(nextEpisodes[0].episode_number || 1);
+            }
+          } else {
+            setSelectedEpisode(1);
+          }
         } catch (e) {
           console.error(e);
+          setEpisodes([]);
+          setSelectedEpisode(1);
         } finally {
           setLoadingEpisodes(false);
         }
@@ -149,8 +165,8 @@ export default function Watch() {
     playerProps = {
       type: "iframe",
       src: isMovie
-        ? `https://vidsrc.to/embed/movie/${id}`
-        : `https://vidsrc.to/embed/tv/${id}/${selectedSeason}/${selectedEpisode}`,
+        ? `https://vidsrc.xyz/embed/movie?tmdb=${id}`
+        : `https://vidsrc.xyz/embed/tv?tmdb=${id}&season=${selectedSeason}&episode=${selectedEpisode}`,
       title: isMovie
         ? drama.name
         : `${drama.name} - S${selectedSeason} E${selectedEpisode}`,
@@ -181,7 +197,11 @@ export default function Watch() {
             <div className="flex gap-3">
               <select
                 value={selectedSeason}
-                onChange={(e) => setSelectedSeason(e.target.value)}
+                onChange={(e) => {
+                  const season = parseInt(e.target.value, 10);
+                  setSelectedSeason(Number.isNaN(season) ? 1 : season);
+                  setSelectedEpisode(1);
+                }}
                 className="bg-white/5 border border-white/10 text-white px-4 py-2 rounded-xl text-sm font-bold focus:outline-none focus:border-pink-500 transition-colors"
               >
                 {seasons.map((s) => (
@@ -239,6 +259,12 @@ export default function Watch() {
                         </span>
                       </button>
                     ))}
+
+                {!loadingEpisodes && episodes.length === 0 && (
+                  <div className="col-span-full text-center text-gray-400 bg-white/5 rounded-xl py-6">
+                    No episodes found for this season.
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
