@@ -223,6 +223,13 @@ export default function Watch() {
           poster={poster(drama.backdrop_path, "original")}
         />
 
+        {mode === "full" && (
+          <div className="mt-4 rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-amber-200 text-sm">
+            If the player stays blank, this episode is not available right now.
+            Please try another episode or season.
+          </div>
+        )}
+
         {/* Episode List */}
         <AnimatePresence>
           {mode === "full" && drama.number_of_seasons > 0 && (
