@@ -1,128 +1,128 @@
-# 🎬 KDramaX — Full Stack K-Drama Streaming App
+# 🎬 KDramaX — The Ultimate K-Drama Streaming Experience
 
-Premium K-Drama experience with **Web + Android**, Watch Party, Live Chat, and seamless Trakt integration.
+[![Vite](https://img.shields.io/badge/Vite-646CFF?style=for-the-badge&logo=vite&logoColor=white)](https://vitejs.dev/)
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactjs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
----
-
-## 📁 Project Structure
-
-```
-kdrama-app/
-├── backend/          ← Node.js + Express + MongoDB + Socket.io
-├── frontend/         ← React + Vite + TailwindCSS (Web)
-└── android/          ← React Native + Expo (Android APK)
-```
+KDramaX is a premium, full-stack streaming application designed for K-Drama enthusiasts. It offers a Netflix-style interface, high-performance streaming, real-time social features, and a native Android application.
 
 ---
 
-## ⚡ STEP 1 — Get API Keys
+## ✨ Key Features
 
-This project uses a hybrid data setup to ensure reliability and rich metadata:
-- **Trakt API**: Primary source for trending, popular, and search data.
-- **TMDB API**: Used for fetching season and episode details.
+### 📺 Advanced Video Streaming (SuperPlayer)
+Our custom **SuperPlayer** provides a cinema-grade viewing experience:
+- **Gesture Controls**: Swipe on the right for Volume, left for Brightness.
+- **Playback Speed**: Adjust from 0.5x to 2.0x.
+- **Picture-in-Picture (PiP)**: Keep watching while you browse other apps.
+- **Full Episode Support**: Seamlessly navigate between seasons and episodes.
+- **Vidsrc Integration**: Access a massive library of K-Dramas with multiple server options.
 
-### 1. Trakt API Key
-1. Go to → [Trakt API Dashboard](https://trakt.tv/oauth/applications)
-2. Create account → Create a New Application
-3. Set Redirect URI to: `http://localhost:5000/api/auth/trakt/callback`
-4. Copy your **Client ID** and **Client Secret**.
+### 👥 Social & Interactive
+- **Synced Watch Parties**: Create a room and watch with friends in perfect synchronization.
+- **Live Chat**: Real-time interaction during watch parties using Socket.io.
+- **Room Sharing**: Instant room IDs for quick joining.
 
-### 2. TMDB API Key
-1. Go to → [TMDB Settings](https://www.themoviedb.org/settings/api)
-2. Create account → Request API Key (Developer)
-3. Copy your **API Key (v3 auth)**.
+### 🔐 Multi-Tier Authentication
+A beautiful **3-Card Entry System** with distinct themes:
+1. **👤 Normal Login (Red)**: Standard access for registered users.
+2. **✨ Fresh Start (Emerald)**: Modern 2-step registration for new members.
+3. **⭐ Exclusive Access (Purple)**: Premium entry for VIP guests using admin-generated codes.
 
-### 3. MongoDB (FREE)
-1. Go to → [MongoDB Atlas](https://cloud.mongodb.com)
-2. Create free cluster → Connect → Get connection string.
-
----
-
-## 🖥️ STEP 2 — Setup Backend
-
-```bash
-cd backend
-npm install
-
-# Create .env file
-cp .env.example .env
-```
-
-Edit `.env`:
-```
-PORT=5000
-MONGODB_URI=mongodb+srv://YOUR_CONNECTION_STRING
-JWT_SECRET=any_random_long_string_12345
-TRAKT_CLIENT_ID=your_trakt_client_id
-TRAKT_CLIENT_SECRET=your_trakt_client_secret
-TMDB_API_KEY=your_tmdb_api_key
-```
-
-```bash
-# Start server
-npm run dev
-```
-
-✅ Backend running at: `http://localhost:5000`
-
----
-
-## 🌐 STEP 3 — Setup Frontend (Web)
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-✅ Web app running at: `http://localhost:3000`
-
----
-
-## 📱 STEP 4 — Setup Android App
-
-### 4a. Update backend URL
-Edit `android/src/config.js` with your computer's local IP or deployed backend URL.
-
-### 4b. Run with Expo
-```bash
-cd android
-npm install
-npx expo start --android
-```
-
----
-
-## ✨ Features
-
-- 🎬 **Browse K-Dramas** — Real-time trending and popular lists powered by Trakt.
-- 🔍 **Global Search** — Find any K-drama instantly using Trakt's extensive database.
-- 👥 **Watch Party** — Synchronized playback for multiple viewers.
-- 💬 **Live Chat** — Real-time interaction during watch parties.
-- 📺 **Full Metadata** — Detailed season and episode information via TMDB.
-- 📱 **Android App** — Premium mobile experience with Expo.
+### 👨‍💼 Power Admin Dashboard
+- **User Management**: Activate/deactivate accounts.
+- **Invite Engine**: Generate unique VIP access codes for friends.
+- **Engagement Stats**: Monitor app usage and trending dramas.
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|-------|-----------|
-| Backend | Node.js, Express, MongoDB |
-| APIs | Trakt API (Metadata), TMDB API (Episodes) |
-| Real-time | Socket.io (Sync + Chat) |
-| Frontend | React 18, Vite, TailwindCSS |
-| Mobile | React Native, Expo 51 |
+| Layer | Technology | Usage |
+|-------|------------|-------|
+| **Frontend** | React 18, Vite | High-performance Web UI |
+| **Styling** | Tailwind CSS | Modern, responsive design |
+| **Backend** | Node.js, Express | Scalable API & Logic |
+| **Database** | MongoDB, Mongoose | Flexible data storage |
+| **Real-time** | Socket.io | Watch Party & Chat sync |
+| **External APIs** | Trakt.tv & TMDB | Comprehensive drama metadata |
+| **Mobile** | React Native, Expo | Native Android Experience |
 
 ---
 
-## 🔧 Common Issues
+## 📁 Project Structure
 
-**"Trakt API returns no results":**
-- Ensure your `TRAKT_CLIENT_ID` is correct and you have authorized the app if required.
+```text
+kdrama-app/
+├── backend/          # Node.js API, Socket.io, Schemas
+├── frontend/         # React + Vite Web Application
+├── android/          # React Native + Expo Mobile App
+└── NEEDED/           # Setup assets & documentation
+```
 
-**"Images not showing":**
-- The app uses the local MongoDB to cache image paths that are not provided by Trakt. Ensure your database is seeded or has data.
+---
 
-**"Network Error" on Android:**
-- Ensure your phone and computer are on the same WiFi network and the IP address in `config.js` is correct.
+## 🚀 Getting Started
+
+### 1. Prerequisites
+- **Node.js**: v18 or higher
+- **MongoDB**: A running Atlas cluster or local instance
+- **API Keys**: Trakt.tv & TMDB API keys
+
+### 2. Backend Setup
+```bash
+cd backend
+npm install
+# Create .env based on .env.example
+npm run seed  # Initialize admin account
+npm run dev   # Start server on http://localhost:5001
+```
+
+### 3. Frontend Setup
+```bash
+cd frontend
+npm install
+npm run dev   # Start web app on http://localhost:5173
+```
+
+### 4. Mobile Setup
+```bash
+cd android
+npm install
+# Update backend URL in src/config.js
+npx expo start
+```
+
+---
+
+## 🔑 Default Admin Credentials
+
+> [!WARNING]
+> Please change these credentials immediately after your first login.
+
+- **Email**: `arunkumarpalani428@gmail.com`
+- **Password**: `Arunkumar@2006`
+
+---
+
+## 🔧 Environment Variables (.env)
+
+Ensure your `backend/.env` contains:
+```text
+PORT=5001
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_secure_secret
+TMDB_API_KEY=your_tmdb_key
+TRAKT_CLIENT_ID=your_trakt_id
+TRAKT_CLIENT_SECRET=your_trakt_secret
+```
+
+---
+
+## 📞 Support & Feedback
+
+For any issues or feature requests, please reach out to the project administrator.
+
+**Enjoy your K-Drama journey! 🍿🎥**
