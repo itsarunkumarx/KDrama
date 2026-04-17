@@ -181,7 +181,10 @@ router.get("/:id", async (req, res) => {
 router.get("/:id/videos", async (req, res) => {
   try {
     const { data } = await tmdb.get(`/tv/${req.params.id}/videos`, {
-      params: { language: "en-US" },
+      params: {
+        language: "en-US",
+        include_video_language: "en,null",
+      },
     });
     return res.json({ results: data.results || [], source: "tmdb_live_api" });
   } catch (err) {
