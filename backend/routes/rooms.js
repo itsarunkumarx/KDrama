@@ -1,25 +1,24 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const { v4: uuidv4 } = require('uuid');
-const { auth } = require('../middleware/auth');
+const { v4: uuidv4 } = require("uuid");
 
 // In-memory rooms (for simplicity; can be persisted to MongoDB)
 const rooms = {};
 
 // Create Room
-router.post('/', auth, (req, res) => {
+router.post("/", (req, res) => {
   try {
-    const { dramaId, dramaTitle, posterPath } = req.body;
+    const { dramaId, dramaTitle, posterPath, userName } = req.body;
     const roomId = uuidv4().substring(0, 8).toUpperCase();
     rooms[roomId] = {
       roomId,
       dramaId,
       dramaTitle,
       posterPath,
-      host: { userId: req.user._id, name: req.user.name },
+      host: { userId: "guest-host", name: userName || "Guest Host" },
       createdAt: new Date(),
       users: [],
-      messages: []
+      messages: [],
     };
     res.status(201).json({ roomId, room: rooms[roomId] });
   } catch (err) {
@@ -28,21 +27,21 @@ router.post('/', auth, (req, res) => {
 });
 
 // Get Room Info
-router.get('/:roomId', auth, (req, res) => {
+router.get("/:roomId", (req, res) => {
   const room = rooms[req.params.roomId];
-  if (!room) return res.status(404).json({ message: 'Room not found' });
+  if (!room) return res.status(404).json({ message: "Room not found" });
   res.json({ room });
 });
 
 // List Active Rooms
-router.get('/', auth, (req, res) => {
-  const activeRooms = Object.values(rooms).map(r => ({
+router.get("/", (req, res) => {
+  const activeRooms = Object.values(rooms).map((r) => ({
     roomId: r.roomId,
     dramaTitle: r.dramaTitle,
     posterPath: r.posterPath,
     host: r.host,
     userCount: r.users.length,
-    createdAt: r.createdAt
+    createdAt: r.createdAt,
   }));
   res.json({ rooms: activeRooms });
 });

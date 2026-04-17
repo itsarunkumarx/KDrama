@@ -1,319 +1,214 @@
-const express = require('express');
+const express = require("express");
 const router = express.Router();
-const axios = require('axios');
-const Drama = require('../models/Drama');
+const axios = require("axios");
 
-// Setup Trakt API instance
-const trakt = axios.create({
-  baseURL: 'https://api.trakt.tv',
-  headers: {
-    'Content-Type': 'application/json',
-    'trakt-api-version': '2',
-    'trakt-api-key': process.env.TRAKT_CLIENT_ID
-  },
-  timeout: 10000 // 10s timeout for Trakt calls
-});
-
-// Setup TMDB API instance
 const tmdb = axios.create({
-  baseURL: 'https://api.themoviedb.org/3',
+  baseURL: "https://api.themoviedb.org/3",
   params: {
-    api_key: process.env.TMDB_API_KEY
+    api_key: process.env.TMDB_API_KEY,
   },
   headers: {
     Authorization: `Bearer ${process.env.TMDB_ACCESS_TOKEN}`,
-    'Content-Type': 'application/json;charset=utf-8'
-  }
+    "Content-Type": "application/json;charset=utf-8",
+  },
+  timeout: 15000,
 });
 
-console.log('📡 Trakt API Key loaded:', process.env.TRAKT_CLIENT_ID ? '✅' : '❌');
-console.log('📡 TMDB API Key loaded:', process.env.TMDB_API_KEY ? '✅' : '❌');
+const normalizeShow = (show) => ({
+  id: show.id,
+  name: show.name || show.title,
+  title: show.name || show.title,
+  original_name: show.original_name || show.original_title,
+  overview: show.overview,
+  first_air_date: show.first_air_date || show.release_date,
+  popularity: show.popularity,
+  poster_path: show.poster_path,
+  backdrop_path: show.backdrop_path,
+  vote_average: show.vote_average,
+  vote_count: show.vote_count,
+  genre_ids: show.genre_ids,
+  original_language: show.original_language,
+  source: "tmdb_live_api",
+});
 
-/**
- * Helper to map Trakt response to our frontend's expected format.
- * Includes a warning note: Trakt does not provide image URLs natively.
- * We cross-reference the local DB to restore the posters!
- */
-const mapTraktShowAsync = async (item) => {
-  const show = item.show || item;
-  const tmdbId = show.ids?.tmdb || show.ids?.trakt;
-  
-  let poster_path = null;
-  let backdrop_path = null;
-  
-  // Pluck the beautiful images from our local database to fix Trakt's text-only limitation!
-  if (tmdbId) {
-    const local = await Drama.findOne({ id: tmdbId });
-    if (local) {
-      poster_path = local.poster_path;
-      backdrop_path = local.backdrop_path;
-    }
-  }
-
-  return {
-    id: tmdbId,
-    name: show.title,
-    original_name: show.title,
-    overview: show.overview,
-    first_air_date: show.first_aired,
-    popularity: item.watchers || show.rating || 0,
-    poster_path,   
-    backdrop_path, 
-    source: 'trakt_merged'
-  };
+const returnList = (res, data, page) => {
+  const results = (data.results || []).map(normalizeShow);
+  return res.json({
+    results,
+    page: data.page || page || 1,
+    total_results: data.total_results || results.length,
+    source: "tmdb_live_api",
+  });
 };
 
-// Check if Trakt keys exist
-const hasTraktAuth = () => process.env.TRAKT_CLIENT_ID && process.env.TRAKT_CLIENT_ID !== 'your_client_id_here';
+const parsePage = (value) => {
+  const page = parseInt(value || "1", 10);
+  return Number.isNaN(page) || page < 1 ? 1 : page;
+};
 
-// ── Get trending from Trakt (Real-Time) - Fallback to Local ────────
-router.get('/trending', async (req, res) => {
+router.get("/trending", async (req, res) => {
   try {
-    console.log('🎬 /trending endpoint called');
-    
-    // Try Trakt API first
-    if (hasTraktAuth()) {
-      try {
-        console.log('📡 Attempting Trakt API...');
-        // Filter by Korean language
-        const { data } = await trakt.get('/shows/trending?extended=full&languages=ko');
-        if (data && data.length > 0) {
-          console.log('✅ Trakt Success: ' + data.length + ' dramas');
-          const mapped = await Promise.all(data.map(mapTraktShowAsync));
-          return res.json({ results: mapped, total_results: mapped.length, source: 'trakt_live_api' });
-        }
-      } catch (err) {
-        console.log('⚠️ Trakt error, falling back to local cache');
-      }
-    }
-    
-    // Fallback to local database cache
-    console.log('📚 Checking local database...');
-    const localDramas = await Drama.find().sort({ popularity: -1 }).limit(20);
-    if (localDramas.length > 0) {
-      console.log('✅ Found local dramas: ' + localDramas.length);
-      return res.json({ results: localDramas, total_results: localDramas.length, source: 'local_cache' });
-    }
-    
-    res.json({ results: [], source: 'none' });
+    const { data } = await tmdb.get("/trending/tv/week", {
+      params: { language: "en-US" },
+    });
+    return returnList(res, data);
   } catch (err) {
-    res.status(500).json({ message: 'Error: ' + err.message });
+    return res.status(500).json({
+      message: "Failed to fetch trending dramas",
+      detail: err.response?.data || err.message,
+    });
   }
 });
 
-// ── New Releases - Trakt First with Local Fallback ──────────────────
-router.get('/new-releases', async (req, res) => {
+router.get("/new-releases", async (req, res) => {
+  const page = parsePage(req.query.page);
   try {
-    console.log('📅 /new-releases endpoint called');
-    
-    if (hasTraktAuth()) {
-      try {
-        const { data } = await trakt.get('/shows/anticipated?extended=full');
-        // Trakt's languages filter might not work on anticipated, but let's filter after fetch if needed.
-        const koreanShows = data.filter(item => item.show.language === 'ko' || item.show.country === 'kr');
-        if (koreanShows.length > 0) {
-          console.log('✅ Trakt Success: ' + koreanShows.length + ' new releases');
-          const mapped = await Promise.all(koreanShows.map(mapTraktShowAsync));
-          return res.json({ results: mapped, total_results: mapped.length, source: 'trakt_live_api' });
-        }
-      } catch (err) {
-        console.log('⚠️ Trakt error, falling back to local');
-      }
-    }
-    
-    const localDramas = await Drama.find().sort({ first_air_date: -1 }).limit(20);
-    if (localDramas.length > 0) {
-      return res.json({ results: localDramas, total_results: localDramas.length, source: 'local_cache' });
-    }
-    
-    res.json({ results: [], source: 'none' });
+    const { data } = await tmdb.get("/discover/tv", {
+      params: {
+        language: "en-US",
+        page,
+        sort_by: "first_air_date.desc",
+        with_original_language: "ko",
+        "first_air_date.lte": new Date().toISOString().slice(0, 10),
+        include_null_first_air_dates: false,
+      },
+    });
+    return returnList(res, data, page);
   } catch (err) {
-    res.status(500).json({ message: 'Error: ' + err.message });
+    return res.status(500).json({
+      message: "Failed to fetch new releases",
+      detail: err.response?.data || err.message,
+    });
   }
 });
 
-// ── Popular K-Dramas - Trakt First with Local Fallback ───────────────
-router.get('/popular', async (req, res) => {
+router.get("/popular", async (req, res) => {
+  const page = parsePage(req.query.page);
   try {
-    console.log('⭐ /popular endpoint called');
-    
-    if (hasTraktAuth()) {
-      try {
-        const { data } = await trakt.get('/shows/popular?extended=full&languages=ko');
-        if (data && data.length > 0) {
-          const mapped = await Promise.all(data.map(mapTraktShowAsync));
-          return res.json({ results: mapped, total_results: mapped.length, source: 'trakt_live_api' });
-        }
-      } catch (err) {
-        console.log('⚠️ Trakt error, falling back to local');
-      }
-    }
-    
-    const dramas = await Drama.find().sort({ popularity: -1 }).limit(20);
-    if (dramas.length > 0) {
-      return res.json({ results: dramas, total_results: dramas.length, source: 'local_cache' });
-    }
-    
-    res.json({ results: [], source: 'none' });
+    const { data } = await tmdb.get("/tv/popular", {
+      params: { language: "en-US", page },
+    });
+    return returnList(res, data, page);
   } catch (err) {
-    res.status(500).json({ message: 'Error: ' + err.message });
+    return res.status(500).json({
+      message: "Failed to fetch popular dramas",
+      detail: err.response?.data || err.message,
+    });
   }
 });
 
-// ── Romance K-Dramas ───────────────────────────────────────────────
-router.get('/romance', async (req, res) => {
+router.get("/romance", async (req, res) => {
   try {
-    if (hasTraktAuth()) {
-      try {
-        const { data } = await trakt.get('/shows/popular?extended=full&languages=ko&genres=romance');
-        if (data && data.length > 0) {
-          const mapped = await Promise.all(data.map(mapTraktShowAsync));
-          return res.json({ results: mapped, total_results: mapped.length, source: 'trakt_live_api' });
-        }
-      } catch (err) { }
-    }
-    
-    const dramas = await Drama.find().sort({ popularity: -1 }).limit(20);
-    res.json({ results: dramas, total_results: dramas.length, source: 'local_cache' });
+    const { data } = await tmdb.get("/discover/tv", {
+      params: {
+        language: "en-US",
+        sort_by: "popularity.desc",
+        with_original_language: "ko",
+        with_genres: "10749",
+      },
+    });
+    return returnList(res, data);
   } catch (err) {
-    res.status(500).json({ message: 'Error: ' + err.message });
+    return res.status(500).json({
+      message: "Failed to fetch romance dramas",
+      detail: err.response?.data || err.message,
+    });
   }
 });
 
-// ── Action K-Dramas ────────────────────────────────────────────────
-router.get('/action', async (req, res) => {
+router.get("/action", async (req, res) => {
   try {
-    if (hasTraktAuth()) {
-      try {
-        const { data } = await trakt.get('/shows/popular?extended=full&languages=ko&genres=action');
-        if (data && data.length > 0) {
-          const mapped = await Promise.all(data.map(mapTraktShowAsync));
-          return res.json({ results: mapped, total_results: mapped.length, source: 'trakt_live_api' });
-        }
-      } catch (err) { }
-    }
-    
-    const dramas = await Drama.find().sort({ popularity: -1 }).limit(20);
-    res.json({ results: dramas, total_results: dramas.length, source: 'local_cache' });
+    const { data } = await tmdb.get("/discover/tv", {
+      params: {
+        language: "en-US",
+        sort_by: "popularity.desc",
+        with_original_language: "ko",
+        with_genres: "10759",
+      },
+    });
+    return returnList(res, data);
   } catch (err) {
-    res.status(500).json({ message: 'Error: ' + err.message });
+    return res.status(500).json({
+      message: "Failed to fetch action dramas",
+      detail: err.response?.data || err.message,
+    });
   }
 });
 
-// ── Search ─────────────────────────────────────────────────────────
-router.get('/search', async (req, res) => {
-  try {
-    const { q } = req.query;
-    if (!q) return res.json({ results: [] });
-    
-    // Fallback to Trakt (Search Trakt returns { type: 'show', show: {...} })
-    if (hasTraktAuth()) {
-      try {
-        const { data } = await trakt.get(`/search/show?query=${q}&extended=full`);
-        if (data && data.length > 0) {
-          const mapped = await Promise.all(data.map(item => mapTraktShowAsync(item.show)));
-          return res.json({ results: mapped, total_results: mapped.length, source: 'trakt_live_api' });
-        }
-      } catch (err) {}
-    }
+router.get("/search", async (req, res) => {
+  const q = (req.query.q || "").trim();
+  const page = parsePage(req.query.page);
+  if (!q) {
+    return res.json({ results: [], page, total_results: 0, source: "none" });
+  }
 
-    // Search local database
-    const localResults = await Drama.find({
-      $or: [
-        { name: { $regex: q, $options: 'i' } },
-        { original_name: { $regex: q, $options: 'i' } },
-        { overview: { $regex: q, $options: 'i' } }
-      ]
-    }).limit(20);
-    
-    if (localResults.length > 0) {
-      return res.json({ results: localResults, total_results: localResults.length, source: 'local' });
-    }
-    
-    res.json({ results: [], source: 'none' });
+  try {
+    const { data } = await tmdb.get("/search/tv", {
+      params: { query: q, page, language: "en-US" },
+    });
+    return returnList(res, data, page);
   } catch (err) {
-    res.status(500).json({ message: 'Error: ' + err.message });
+    return res.status(500).json({
+      message: "Failed to search dramas",
+      detail: err.response?.data || err.message,
+    });
   }
 });
 
-// ── Drama Detail ───────────────────────────────────────────────────
-router.get('/:id', async (req, res) => {
+router.get("/:id", async (req, res) => {
   try {
-    const dramaId = req.params.id; // Could be TMDB or Trakt ID now
-    
-    // Try Trakt as fallback (with timeout)
-    if (hasTraktAuth()) {
-      try {
-        const { data } = await trakt.get(`/shows/${dramaId}?extended=full`);
-        const mapped = await mapTraktShowAsync(data);
-        return res.json({ ...mapped, source: 'trakt' });
-      } catch (err) { }
-    }
-
-    // Try local DB (Assume ID matches local DB which has TMDB IDs normally)
-    let drama = await Drama.findOne({ id: parseInt(dramaId) });
-    if (drama) {
-      return res.json({ 
-        ...drama.toObject(), 
-        source: 'local',
-        id: drama.id,
-        name: drama.name || drama.title,
-        title: drama.title || drama.name
-      });
-    }
-    
-    res.status(404).json({ message: 'Drama not found', id: dramaId });
+    const { data } = await tmdb.get(`/tv/${req.params.id}`, {
+      params: {
+        language: "en-US",
+        append_to_response: "similar,videos",
+      },
+    });
+    return res.json({
+      ...data,
+      name: data.name || data.title,
+      title: data.name || data.title,
+      source: "tmdb_live_api",
+    });
   } catch (err) {
-    res.status(500).json({ message: `Error: ${err.message}` });
+    const status = err.response?.status || 500;
+    return res.status(status).json({
+      message: "Drama not found",
+      detail: err.response?.data || err.message,
+    });
   }
 });
 
-// ── Videos (Real Trailer Support) ──────────────────────────────────
-router.get('/:id/videos', async (req, res) => {
-  const dramaId = req.params.id;
-  const results = [];
-
+router.get("/:id/videos", async (req, res) => {
   try {
-    // 1. Try fetching trailer from Trakt
-    if (hasTraktAuth()) {
-      try {
-        const { data } = await trakt.get(`/shows/${dramaId}?extended=full`);
-        if (data.trailer && data.trailer.includes('youtube.com/watch?v=')) {
-          const key = data.trailer.split('v=')[1];
-          results.push({ id: `trakt_${dramaId}`, key, site: 'YouTube', type: 'Trailer', name: 'Official Trailer' });
-          return res.json({ results });
-        }
-      } catch (e) { }
-    }
-
-    // 2. Fallback to Local Database
-    let drama = await Drama.findOne({ id: parseInt(dramaId) });
-    if (drama && drama.videos && drama.videos.length > 0) {
-      return res.json({ results: drama.videos });
-    }
-  } catch (err) { }
-  
-  res.json({ results });
-});
-
-// ── Seasons (All Seasons Metadata) ───────────────────────────────
-router.get('/:id/seasons', async (req, res) => {
-  try {
-    const { data } = await tmdb.get(`/tv/${req.params.id}?append_to_response=images`);
-    res.json({ seasons: data.seasons || [] });
+    const { data } = await tmdb.get(`/tv/${req.params.id}/videos`, {
+      params: { language: "en-US" },
+    });
+    return res.json({ results: data.results || [], source: "tmdb_live_api" });
   } catch (err) {
-    res.status(500).json({ message: 'TMDB Error: ' + err.message });
+    return res.json({ results: [], source: "tmdb_error_fallback" });
   }
 });
 
-// ── Season Detail (Episode List) ──────────────────────────────────
-router.get('/:id/season/:s', async (req, res) => {
+router.get("/:id/seasons", async (req, res) => {
+  try {
+    const { data } = await tmdb.get(`/tv/${req.params.id}`, {
+      params: { language: "en-US" },
+    });
+    return res.json({ seasons: data.seasons || [] });
+  } catch (err) {
+    return res.status(500).json({ message: "TMDB Error: " + err.message });
+  }
+});
+
+router.get("/:id/season/:s", async (req, res) => {
   try {
     const { id, s } = req.params;
-    const { data } = await tmdb.get(`/tv/${id}/season/${s}`);
-    res.json({ episodes: data.episodes || [] });
+    const { data } = await tmdb.get(`/tv/${id}/season/${s}`, {
+      params: { language: "en-US" },
+    });
+    return res.json({ episodes: data.episodes || [] });
   } catch (err) {
-    res.status(500).json({ message: 'TMDB Error: ' + err.message });
+    return res.status(500).json({ message: "TMDB Error: " + err.message });
   }
 });
 
